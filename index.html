@@ -74,6 +74,7 @@ fetch('game.json')
     project = JSON.parse(t.replace(/^﻿/, ''));
     if (project.title) document.title = project.title;
     preloadImages(project); // タイトル画面表示中に全画像を先読みし、切替遅延をなくす
+    preloadSounds(project); // 音声もHTTPキャッシュに先読みし、初回SE/BGMの再生遅延をなくす
   })
   .catch(() => {
     const err = document.createElement('div');
@@ -113,6 +114,34 @@ function preloadImages(p) {
     img.src = src;
     preloadedImgs.push(img); // GC防止に保持
   });
+}
+
+// ゲームデータ内の全音声パス（bgmフィールド + [bgm:][se:]タグ、conditionalText含む）を収集
+function collectSoundPaths(p) {
+  const set = new Set();
+  const add = v => {
+    if (!v || v === 'none') return;
+    v = v.replace(/\s+vol\s*=\s*[\d.]+\s*$/, '').trim();
+    set.add(v.includes('/') ? v : 'sounds/' + v);
+  };
+  const tagRe = key => new RegExp('\\[' + key + '(?:\\s+if\\s+[^:\\]]+)?:([^\\]]+)\\]', 'g');
+  (p.steps || []).forEach(s => {
+    add(s.bgm);
+    const texts = [s.text || ''];
+    (s.conditionalText || []).forEach(ct => texts.push(ct.append || ''));
+    texts.forEach(t => {
+      ['bgm', 'se'].forEach(key => {
+        const re = tagRe(key);
+        let m;
+        while ((m = re.exec(t)) !== null) add(m[1].trim());
+      });
+    });
+  });
+  return [...set];
+}
+
+function preloadSounds(p) {
+  collectSoundPaths(p).forEach(src => { fetch(src).catch(() => {}); });
 }
 
 // ===== スマホ対応スケーリング（縦横比維持で画面にフィット、等倍が上限） =====
