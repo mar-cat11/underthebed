@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>ベッドの下の男</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Segoe UI',sans-serif;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.game-container{position:relative;width:640px;height:480px;background:#000;border:2px solid #333;flex-shrink:0;user-select:none;-webkit-user-select:none;cursor:pointer;touch-action:manipulation}
+.game-bg{position:absolute;inset:0;background-size:cover;background-position:center;background-color:#111}
+.game-character{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);max-height:60%;max-width:80%;object-fit:contain;pointer-events:none}
+.game-textbox{position:absolute;bottom:0;left:0;right:0;height:auto;background:rgba(0,0,20,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-top:1px solid rgba(74,144,217,.4);padding:10px 14px 22px 14px}
+.game-nameplate{display:inline-block;background:#4a90d9;color:#fff;font-size:12px;font-weight:700;padding:2px 10px;margin-bottom:6px;border-radius:2px;min-width:60px}
+.game-nameplate:empty{display:none}
+.game-text{font-size:15px;line-height:1.6;color:#f0f0f0;height:3.2em;overflow:hidden;white-space:pre-line}
+.game-text.cursor::after{content:'▋';animation:blink .9s step-end infinite;color:#4a90d9}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.page-arrow{position:absolute;bottom:8px;right:14px;color:#4a90d9;font-size:13px;display:none;animation:bounce-arrow .8s ease-in-out infinite;pointer-events:none}
+@keyframes bounce-arrow{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+.game-choices{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,20,.96);padding:10px;display:flex;flex-direction:column;gap:6px}
+.choice-btn{background:#0f3460;border:1px solid #4a90d9;color:#e0e0e0;padding:8px 14px;text-align:left;border-radius:4px;cursor:pointer;font-size:13px;transition:all .15s;font-family:inherit}
+.choice-btn:hover{background:#4a90d9;color:#fff}
+.game-start-screen{position:absolute;inset:0;background:#000 url('pictures/タイトル.png') center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;padding-bottom:48px}
+.title-start-btn{background:rgba(0,0,20,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#f0f0f0;border:1px solid rgba(74,144,217,.4);border-radius:12px;padding:14px 56px;font-size:18px;letter-spacing:6px;cursor:pointer;transition:all .3s;font-family:inherit;box-shadow:0 4px 24px rgba(0,0,0,.4)}
+.title-start-btn:hover{background:rgba(15,52,96,.6);border-color:rgba(74,144,217,.7);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.5),0 0 14px rgba(74,144,217,.25)}
+.mute-btn{position:absolute;top:10px;right:10px;background:rgba(0,0,20,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#f0f0f0;border:1px solid rgba(74,144,217,.4);border-radius:8px;font-size:16px;width:38px;height:38px;cursor:pointer;transition:all .3s}
+.mute-btn:hover{background:rgba(15,52,96,.6);border-color:rgba(74,144,217,.7)}
+.game-end-screen{position:absolute;inset:0;background:rgba(0,0,20,.95);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#e0e0e0;font-size:16px}
+.start-btn{background:#e94560;color:#fff;border:none;padding:10px 28px;border-radius:4px;font-size:14px;cursor:pointer;font-weight:700}
+.game-end-title{position:absolute;bottom:28px;left:0;right:0;text-align:center;font-size:28px;font-weight:700;color:#f0f0f0;text-shadow:0 2px 10px rgba(0,0,0,.9);display:none;pointer-events:none}
+.game-return-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,20,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#f0f0f0;border:1px solid rgba(74,144,217,.4);border-radius:12px;padding:13px 42px;font-size:14px;letter-spacing:2px;cursor:pointer;transition:all .3s;font-family:inherit;box-shadow:0 4px 24px rgba(0,0,0,.4);display:none}
+.game-return-btn:hover{background:rgba(15,52,96,.6);border-color:rgba(74,144,217,.7);transform:translate(-50%,calc(-50% - 2px));box-shadow:0 8px 28px rgba(0,0,0,.5),0 0 14px rgba(74,144,217,.25)}
+.load-error{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e94560;font-size:14px;background:#000}
+</style>
+</head>
+<body>
+<div class="game-container" id="gameContainer" onclick="handleGameClick()">
+  <div class="game-bg" id="gameBg"></div>
+  <img class="game-character" id="gameChar" style="display:none" alt="">
+  <div class="game-textbox" id="gameTextbox" style="display:none">
+    <div class="game-nameplate" id="gameNameplate"></div>
+    <div class="game-text" id="gameText"></div>
+    <div class="page-arrow" id="pageArrow">▼</div>
+  </div>
+  <div class="game-choices" id="gameChoices" style="display:none"></div>
+  <div class="game-end-title" id="gameEndTitle"></div>
+  <button class="game-return-btn" id="gameReturnBtn" onclick="returnToTitle();event.stopPropagation()">タイトルに戻る</button>
+  <div class="game-start-screen" id="gameStartScreen">
+    <button class="mute-btn" id="muteBtn" onclick="toggleMute();event.stopPropagation()">🔊</button>
+    <button class="title-start-btn" onclick="startGame();event.stopPropagation()">START</button>
+  </div>
+</div>
+
+<script>
+let project = null;
+
+let previewState = {
+  active: false, currentId: null, bgId: null, charId: null,
+  typing: false, done: false, flags: {}, displayText: '',
+  pages: [], pageIndex: 0, speaker: '', endName: undefined, endPhase: null
+};
+let twTimer = null;
+
+// ===== データ読み込み =====
+fetch('game.json')
+  .then(r => r.text())
+  .then(t => {
+    project = JSON.parse(t.replace(/^﻿/, ''));
+    if (project.title) document.title = project.title;
+  })
+  .catch(() => {
+    const err = document.createElement('div');
+    err.className = 'load-error';
+    err.textContent = 'ゲームデータの読み込みに失敗しました';
+    document.getElementById('gameContainer').appendChild(err);
+  });
+
+// ===== スマホ対応スケーリング（縦横比維持で画面にフィット、等倍が上限） =====
+function fitScale() {
+  const s = Math.min(window.innerWidth / 644, window.innerHeight / 484, 1);
+  document.getElementById('gameContainer').style.transform = `scale(${s})`;
+}
+window.addEventListener('resize', fitScale);
+fitScale();
+
+// ===== 条件式評価 =====
+function evalShowIf(cond, flags) {
+  if (!cond || !cond.trim()) return true;
+  cond = cond.trim();
+  if (cond.startsWith('!')) return !flags[cond.slice(1).trim()];
+  const m = cond.match(/^flagCount\s*(>=|<=|===|==|=|>|<)\s*(\d+)$/);
+  if (m) {
+    const keys = (project.countFlags && project.countFlags.length) ? project.countFlags : (project.flags || []);
+    const fc = keys.filter(f => flags[f]).length;
+    const n = parseInt(m[2]);
+    switch(m[1]) {
+      case '>=': return fc >= n;
+      case '<=': return fc <= n;
+      case '>':  return fc > n;
+      case '<':  return fc < n;
+      default:   return fc === n;
+    }
+  }
+  if (/^\w+$/.test(cond)) return !!flags[cond];
+  return false;
+}
+
+// ===== テキスト行計測・ページ分割 =====
+let measEl = null;
+function getMeasureEl() {
+  const container = document.getElementById('gameContainer');
+  if (!measEl) {
+    measEl = document.createElement('div');
+    measEl.className = 'game-text';
+    measEl.style.cssText = 'position:absolute;visibility:hidden;height:auto;overflow:visible;left:0;top:0';
+    container.appendChild(measEl);
+  }
+  measEl.style.width = (container.clientWidth - 28 - 16) + 'px';
+  return measEl;
+}
+
+function measureLines(text, meas) {
+  meas.textContent = 'あ';
+  const lineH = meas.offsetHeight;
+  const lines = [];
+  for (const seg of text.split('\n')) {
+    let cur = '';
+    for (const ch of seg) {
+      meas.textContent = cur + ch;
+      if (meas.offsetHeight > lineH && cur) { lines.push(cur); cur = ch; }
+      else cur += ch;
+    }
+    if (cur) lines.push(cur);
+  }
+  return lines.length ? lines : [''];
+}
+
+function splitPages(text, flags) {
+  flags = flags || {};
+  const tagRe = key => new RegExp('\\[' + key + '(?:\\s+if\\s+([^:\\]]+))?:([^\\]]+)\\]', 'g');
+  const rawParas = text.split(/\n\n+/).map(p => p.trim()).filter(p => p);
+  const paras = [];
+  let pendBg, pendChar, pendName, pendBgm, pendSe, pendForce = false;
+  let hasNames = false;
+  for (const raw of rawParas) {
+    let bg = pendBg, char = pendChar, name = pendName, bgm = pendBgm, se = pendSe;
+    let t = raw
+      .replace(tagRe('bg'), (_, c, v) => { if (evalShowIf(c, flags)) bg = v.trim(); return ''; })
+      .replace(tagRe('char'), (_, c, v) => { if (evalShowIf(c, flags)) char = v.trim(); return ''; })
+      .replace(tagRe('name'), (_, c, v) => { if (evalShowIf(c, flags)) name = v.trim(); return ''; })
+      .replace(tagRe('bgm'), (_, c, v) => { if (evalShowIf(c, flags)) bgm = v.trim(); return ''; })
+      .replace(tagRe('se'), (_, c, v) => { if (evalShowIf(c, flags)) se = v.trim(); return ''; })
+      .trim();
+    const nm = t.match(/^【([^】]*)】\s*/);
+    if (nm) { name = nm[1]; t = t.slice(nm[0].length).trim(); }
+    if (!t.replace(/\[p\]/g, '').trim()) {
+      pendBg = bg; pendChar = char; pendName = name; pendBgm = bgm; pendSe = se;
+      if (/\[p\]/.test(t)) pendForce = true;
+      continue;
+    }
+    if (name !== undefined) hasNames = true;
+    if (name === 'none') name = '';
+    const segs = t.split(/\[p\]/);
+    let first = true;
+    segs.forEach((s, si) => {
+      s = s.trim();
+      const force = pendForce || si > 0;
+      if (!s) { pendForce = force; return; }
+      paras.push({
+        text: s, name,
+        bg: first ? bg : undefined, char: first ? char : undefined,
+        bgm: first ? bgm : undefined, se: first ? se : undefined,
+        force
+      });
+      first = false;
+      pendForce = false;
+    });
+    pendBg = pendChar = pendName = pendBgm = pendSe = undefined;
+  }
+  if (!paras.length) return [{ text: '' }];
+  const meas = getMeasureEl();
+  const pages = [];
+  let cur = null;
+  for (const p of paras) {
+    const pName = p.name !== undefined ? p.name : '';
+    const hasTag = p.bg !== undefined || p.char !== undefined || p.bgm !== undefined || p.se !== undefined;
+    const nameChanged = cur && pName !== cur.nameKey;
+    let needNew = !cur || hasTag || nameChanged || p.force;
+    let firstLine = true;
+    for (const line of measureLines(p.text, meas)) {
+      if (needNew || cur.lines.length >= 2) {
+        cur = {
+          lines: [], nameKey: pName,
+          bg: firstLine ? p.bg : undefined, char: firstLine ? p.char : undefined,
+          bgm: firstLine ? p.bgm : undefined, se: firstLine ? p.se : undefined
+        };
+        pages.push(cur);
+        needNew = false;
+      }
+      cur.lines.push(line);
+      firstLine = false;
+    }
+  }
+  return pages.map(pg => ({
+    text: pg.lines.join('\n'), bg: pg.bg, char: pg.char, bgm: pg.bgm, se: pg.se,
+    name: hasNames ? pg.nameKey : undefined
+  }));
+}
+
+// ===== 背景・立ち絵 =====
+let bgFadeTimer = null;
+
+function applyBg(v) {
+  const el = document.getElementById('gameBg');
+  const path = v === 'none' ? null : (v.includes('/') ? v : 'pictures/' + v);
+  if (previewState.bgId === path) return;
+  previewState.bgId = path;
+  const setImg = () => { el.style.backgroundImage = path ? `url('${path}')` : ''; };
+  const fadeSec = (project.fadeTime !== undefined && !isNaN(project.fadeTime)) ? project.fadeTime : 0.4;
+  clearTimeout(bgFadeTimer);
+  if (fadeSec <= 0) {
+    el.style.transition = '';
+    el.style.opacity = '1';
+    setImg();
+    return;
+  }
+  el.style.transition = `opacity ${fadeSec}s`;
+  el.style.opacity = '0';
+  bgFadeTimer = setTimeout(() => {
+    setImg();
+    el.style.opacity = '1';
+  }, fadeSec * 1000);
+}
+
+function applyChar(v) {
+  const el = document.getElementById('gameChar');
+  if (v === 'none') { el.style.display = 'none'; previewState.charId = null; return; }
+  const path = v.includes('/') ? v : 'pictures/' + v;
+  el.src = path;
+  el.style.display = 'block';
+  previewState.charId = path;
+}
+
+// ===== BGM / 効果音 =====
+let bgmAudio = null, bgmCurrent = null;
+let audioMuted = localStorage.getItem('utb_muted') === '1';
+
+function toggleMute() {
+  audioMuted = !audioMuted;
+  localStorage.setItem('utb_muted', audioMuted ? '1' : '0');
+  if (bgmAudio) bgmAudio.muted = audioMuted;
+  updateMuteBtn();
+}
+
+function updateMuteBtn() {
+  document.getElementById('muteBtn').textContent = audioMuted ? '🔇' : '🔊';
+}
+
+function parseAudioSpec(v) {
+  let vol = 1;
+  const m = v.match(/\s+vol\s*=\s*([\d.]+)\s*$/);
+  if (m) {
+    vol = Math.min(1, Math.max(0, parseFloat(m[1]) || 0));
+    v = v.slice(0, m.index).trim();
+  }
+  return { file: v, vol };
+}
+
+function playBgm(v) {
+  if (v === 'none') {
+    if (bgmAudio) { bgmAudio.pause(); bgmAudio = null; }
+    bgmCurrent = null;
+    return;
+  }
+  const spec = parseAudioSpec(v);
+  const path = spec.file.includes('/') ? spec.file : 'sounds/' + spec.file;
+  if (bgmCurrent === path) {
+    if (bgmAudio) bgmAudio.volume = spec.vol;
+    return;
+  }
+  if (bgmAudio) bgmAudio.pause();
+  bgmAudio = new Audio(path);
+  bgmAudio.loop = true;
+  bgmAudio.muted = audioMuted;
+  bgmAudio.volume = spec.vol;
+  bgmAudio.play().catch(() => {});
+  bgmCurrent = path;
+}
+
+function playSe(v) {
+  if (!v || v === 'none' || audioMuted) return;
+  const spec = parseAudioSpec(v);
+  const path = spec.file.includes('/') ? spec.file : 'sounds/' + spec.file;
+  const a = new Audio(path);
+  a.volume = spec.vol;
+  a.play().catch(() => {});
+}
+
+// ===== ゲーム進行 =====
+function getStep(id) {
+  return project.steps.find(s => s.id === id);
+}
+
+function startGame() {
+  if (!project || !project.steps.length) return;
+  const flags = {};
+  (project.flags || []).forEach(f => flags[f] = false);
+  previewState = {
+    active: true, currentId: project.steps[0].id, bgId: null, charId: null,
+    typing: false, done: false, flags, displayText: '',
+    pages: [], pageIndex: 0, speaker: '', endName: undefined, endPhase: null
+  };
+  document.getElementById('gameStartScreen').style.display = 'none';
+  showStep(previewState.currentId);
+}
+
+function returnToTitle() {
+  previewState.active = false;
+  clearTimeout(twTimer);
+  playBgm('none');
+  clearTimeout(bgFadeTimer);
+  const bgEl = document.getElementById('gameBg');
+  bgEl.style.transition = '';
+  bgEl.style.opacity = '1';
+  bgEl.style.backgroundImage = '';
+  document.getElementById('gameChar').style.display = 'none';
+  document.getElementById('gameChoices').style.display = 'none';
+  document.getElementById('gameEndTitle').style.display = 'none';
+  document.getElementById('gameReturnBtn').style.display = 'none';
+  const tb = document.getElementById('gameTextbox');
+  tb.style.transition = '';
+  tb.style.opacity = '1';
+  tb.style.display = 'none';
+  const endEl = document.querySelector('.game-end-screen');
+  if (endEl) endEl.remove();
+  document.getElementById('gameStartScreen').style.display = 'flex';
+}
+
+function showStep(id) {
+  const step = getStep(id);
+  if (!step) { showEndScreen(); return; }
+  previewState.currentId = id;
+  previewState.typing = false;
+  previewState.done = false;
+
+  if (step.setFlags) step.setFlags.forEach(f => { previewState.flags[f] = true; });
+
+  let displayText = step.text || '';
+  if (step.conditionalText) {
+    for (const ct of step.conditionalText) {
+      if (evalShowIf(ct.if, previewState.flags)) { displayText += '\n\n' + (ct.append || '').trim(); break; }
+    }
+  }
+
+  let endName;
+  displayText = displayText.replace(/\[end(?:\s+if\s+([^:\]]+))?:([^\]]+)\]/g, (_, c, v) => {
+    if (evalShowIf(c, previewState.flags)) endName = v.trim();
+    return '';
+  });
+  displayText = displayText.replace(/^――END[:：]\s*(.+)$/m, (_, v) => {
+    if (endName === undefined) endName = v.trim();
+    return '';
+  });
+  previewState.endName = endName;
+  previewState.endPhase = null;
+
+  previewState.displayText = displayText;
+  previewState.pages = splitPages(displayText, previewState.flags);
+  previewState.pageIndex = 0;
+
+  if (step.bg) applyBg(step.bg);
+  if (step.character) applyChar(step.character);
+  if (step.bgm) playBgm(step.bgm);
+  previewState.speaker = step.speaker || '';
+
+  document.getElementById('gameChoices').style.display = 'none';
+  document.getElementById('pageArrow').style.display = 'none';
+  document.getElementById('gameEndTitle').style.display = 'none';
+  document.getElementById('gameReturnBtn').style.display = 'none';
+  const tb = document.getElementById('gameTextbox');
+  tb.style.transition = '';
+  tb.style.opacity = '1';
+  tb.style.display = 'block';
+
+  showPage(0);
+}
+
+function showPage(index) {
+  previewState.pageIndex = index;
+  previewState.typing = true;
+  previewState.done = false;
+  const page = previewState.pages[index];
+  if (page.bg !== undefined) applyBg(page.bg);
+  if (page.char !== undefined) applyChar(page.char);
+  if (page.bgm !== undefined) playBgm(page.bgm);
+  if (page.se !== undefined) playSe(page.se);
+  document.getElementById('gameNameplate').textContent =
+    page.name !== undefined ? page.name : (previewState.speaker || '');
+  const arrowEl = document.getElementById('pageArrow');
+  arrowEl.style.display = 'none';
+  const textEl = document.getElementById('gameText');
+  const speed = project.typeSpeed || 22;
+  typewrite(textEl, page.text, speed, () => {
+    previewState.typing = false;
+    previewState.done = true;
+    const hasMore = index < previewState.pages.length - 1;
+    arrowEl.style.display = hasMore ? 'block' : 'none';
+  });
+}
+
+function typewrite(el, text, speed, cb) {
+  el.textContent = '';
+  el.classList.add('cursor');
+  let i = 0;
+  clearTimeout(twTimer);
+  (function next() {
+    if (i < text.length) { el.textContent += text[i++]; twTimer = setTimeout(next, speed); }
+    else { el.classList.remove('cursor'); if (cb) cb(); }
+  })();
+}
+
+function showChoices(choices) {
+  const el = document.getElementById('gameChoices');
+  el.innerHTML = '';
+  choices.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = c.label;
+    btn.onclick = e => {
+      e.stopPropagation();
+      el.style.display = 'none';
+      const dest = c.target || c.next;
+      if (dest) showStep(dest);
+      else showEndScreen();
+    };
+    el.appendChild(btn);
+  });
+  el.style.display = 'flex';
+  document.getElementById('gameTextbox').style.display = 'none';
+}
+
+function handleGameClick() {
+  if (!previewState.active) return;
+  if (previewState.endPhase === 'fading') return;
+  if (previewState.endPhase === 'title') {
+    document.getElementById('gameReturnBtn').style.display = 'block';
+    previewState.endPhase = 'return';
+    return;
+  }
+  if (previewState.endPhase === 'return') return;
+  const step = getStep(previewState.currentId);
+  if (!step) return;
+  const arrowEl = document.getElementById('pageArrow');
+  if (previewState.typing) {
+    clearTimeout(twTimer);
+    previewState.typing = false;
+    previewState.done = true;
+    const textEl = document.getElementById('gameText');
+    textEl.textContent = previewState.pages[previewState.pageIndex].text;
+    textEl.classList.remove('cursor');
+    const hasMore = previewState.pageIndex < previewState.pages.length - 1;
+    if (hasMore) { arrowEl.style.display = 'block'; }
+    return;
+  }
+  if (previewState.done) {
+    const hasMore = previewState.pageIndex < previewState.pages.length - 1;
+    if (hasMore) {
+      arrowEl.style.display = 'none';
+      showPage(previewState.pageIndex + 1);
+      return;
+    }
+    const visibleChoices = (step.choices || []).filter(c => evalShowIf(c.showIf, previewState.flags));
+    if (visibleChoices.length > 0) { showChoices(visibleChoices); return; }
+    if (step.next) { showStep(step.next); return; }
+    if (previewState.endName) { startEndSequence(); return; }
+    showEndScreen();
+  }
+}
+
+// エンド演出: テキストウインドウをフェードアウト → 同じ位置にエンド名を大きく表示
+function startEndSequence() {
+  previewState.endPhase = 'fading';
+  const tb = document.getElementById('gameTextbox');
+  const fadeSec = (project.fadeTime !== undefined && !isNaN(project.fadeTime)) ? project.fadeTime : 0.4;
+  tb.style.transition = `opacity ${Math.max(fadeSec, 0.01)}s`;
+  tb.style.opacity = '0';
+  const delaySec = (project.endDelay !== undefined && !isNaN(project.endDelay)) ? project.endDelay : 1.0;
+  setTimeout(() => {
+    tb.style.display = 'none';
+    tb.style.transition = '';
+    tb.style.opacity = '1';
+    setTimeout(() => {
+      const el = document.getElementById('gameEndTitle');
+      el.textContent = previewState.endName;
+      el.style.opacity = '0';
+      el.style.transition = '';
+      el.style.display = 'block';
+      requestAnimationFrame(() => {
+        el.style.transition = 'opacity 1.2s';
+        el.style.opacity = '1';
+      });
+      previewState.endPhase = 'title';
+    }, delaySec * 1000);
+  }, Math.max(fadeSec, 0.01) * 1000);
+}
+
+function showEndScreen() {
+  previewState.active = false;
+  clearTimeout(twTimer);
+  document.getElementById('gameTextbox').style.display = 'none';
+  document.getElementById('gameChoices').style.display = 'none';
+  const end = document.createElement('div');
+  end.className = 'game-end-screen';
+  end.innerHTML = `<div>- END -</div><button class="start-btn" onclick="this.parentElement.remove();returnToTitle();event.stopPropagation()">タイトルに戻る</button>`;
+  document.getElementById('gameContainer').appendChild(end);
+}
+
+updateMuteBtn();
+</script>
+</body>
+</html>
